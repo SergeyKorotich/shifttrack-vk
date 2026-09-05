@@ -32,13 +32,16 @@ jobs:
 
         # НОВЫЙ ШАГ: копируем _redirects в папку build
       - name: Copy _redirects to build folder
+        shell: pwsh
         run: |
-          if [ -f _redirects ]; then
-            cp _redirects ./build/
-          else
-            echo "_redirects not found"
+          if (Test-Path "_redirects") {
+            Copy-Item -Path "_redirects" -Destination "build\_redirects"
+            # GitHub Pages требует имя именно _redirects (без пути), поэтому переименовываем
+            Rename-Item -Path "build\_redirects" -NewName "_redirects"
+          } else {
+            Write-Error "_redirects file not found in repo root"
             exit 1
-          fi
+          }
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
