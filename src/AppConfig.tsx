@@ -6,7 +6,7 @@ import { App } from './App';
 export const AppConfig = () => {
   return (
     <AdaptivityProvider>
-      <AppRoot>
+      <AppRoot mode="full">
         <RouterProvider router={router}>
           <App />
         </RouterProvider>

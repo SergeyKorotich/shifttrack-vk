@@ -3,12 +3,12 @@ import { createRoot } from 'react-dom/client';
 import vkBridge from '@vkontakte/vk-bridge';
 import { AppConfig } from './AppConfig.tsx';
 
-vkBridge.send('VKWebAppInit');
+vkBridge.send('VKWebAppInit').catch(() => {
+  console.warn('VK Bridge недоступен — запуск в standalone-режиме');
+});
 
 const root = createRoot(document.getElementById('root')!);
-root.render(
-  <AppConfig />
-);
+root.render(<AppConfig />);
 
 if (import.meta.env.MODE === 'development') {
   import('./eruda.ts').catch(() => {});
