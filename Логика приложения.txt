@@ -1,0 +1,107 @@
+=== ShiftTrack — резюме проекта ===
+Дата: 2026-09-05
+
+VK Mini App для профессиональных водителей.
+Стек: VKUI + Vite + React + vk-mini-apps-router.
+Хранение: VKWebAppStorage с откатом на localStorage.
+
+=== Структура файлов ===
+
+src/
+├── App.tsx                  — корневой компонент, роутинг панелей
+├── routes.tsx               — конфиг маршрутов (/, /shifts, /profile)
+├── types.ts                 — типы: Car, Shift, Payment, ShiftStats, Balance, CarStatus, TariffType, PaymentType, StatusType
+├── panels/
+│   ├── Shifts.tsx           — главный экран: календарь, форма смены, платежи, статистика, баланс
+│   └── Profile.tsx          — экран профиля: список машин, форма добавления/редактирования, статусы
+└── utils/
+    ├── storage.ts           — обёртка над VKWebAppStorage (loadFromStorage / saveToStorage)
+    └── shiftUtils.ts        — расчёты: смена, статистика, баланс, статусы машины, CSV
+
+=== Логика экрана «Смены» (Shifts.tsx) ===
+
+Календарь (Calendar из VKUI) — основной экран. Тап по дате открывает форму ниже.
+Форма смены:
+  — Если на дату уже есть смена — предзаполнена, кнопка «Обновить смену».
+  — Если нет — пустая, кнопка «Добавить смену».
+  — Поля: автомобиль (NativeSelect), маршрут, тип тарифа (км/час), тариф,
+    пробег начало/конец, время начала/окончания.
+  — Расстояние и заработок считаются автоматически (calculateShift).
+Платежи:
+  — Отдельная секция. Тип (зарплата/аванс/премия), сумма, период (с—по).
+  — Период по умолчанию — текущий месяц.
+  — Привязаны к дате получения.
+Статистика:
+  — Количество смен, средний пробег, средняя длительность, средний заработок.
+Баланс:
+  — Заработано всего, получено всего, остаток к получению.
+  — Положительный остаток — синий (#2688EB), отрицательный — красный (#E64646).
+Навигация:
+  — Кнопка «Профиль» через routeNavigator.push('/profile').
+
+=== Логика экрана «Профиль» (Profile.tsx) ===
+
+Список машин с карточками: марка, госномер, VIN, ОСАГО, ТО (дата + пробег).
+Статусы (calculateCarStatus):
+  — ОСАГО: за 30 дней — warning, просрочено — error.
+  — ТО: по пробегу за 2000 км и по дате за 30 дней — аналогично.
+  — Общий статус машины — худший из двух.
+Форма добавления/редактирования машины.
+Кнопка «Удалить» для каждой машины.
+Навигация: кнопка «К сменам» через routeNavigator.push('/').
+
+=== Хранение ===
+
+shifts_list   — массив смен (каждая с date в YYYY-MM-DD)
+payments_list — массив платежей (date, type, amount, periodFrom, periodTo)
+cars_list     — массив машин (brand, plate, vin, osagoExpiry, inspectionDate, inspectionMileage)
+
+=== Утилиты (shiftUtils.ts) ===
+
+formatDate(date: Date) — Date в YYYY-MM-DD
+parseDate(dateStr) — YYYY-MM-DD в Date
+generateId() — уникальный ID
+calculateShift(odometerStart, odometerEnd, tariff, tariffType, timeStart?, timeEnd?) — расстояние, заработок, длительность
+calculateStats(shifts) — суммарные и средние по сменам
+calculateBalance(shifts, payments) — заработано, получено, остаток
+calculateCarStatus(car, currentMileage?) — статусы ОСАГО, ТО, общий
+generateCsvReport(shifts, cars) — CSV с разделителем ; для Excel
+formatDuration(minutes) — «N ч M мин»
+formatHours(minutes) — «N.M ч»
+
+=== Типы (types.ts) ===
+
+TariffType = 'km' | 'hour'
+PaymentType = 'salary' | 'advance' | 'bonus'
+StatusType = 'default' | 'warning' | 'error'
+Car: { id, brand, plate, vin, osagoExpiry, inspectionDate, inspectionMileage }
+Shift: { id, date, carId, route, odometerStart, odometerEnd, timeStart, timeEnd, tariff, tariffType, distance, earnings }
+Payment: { id, date, type, amount, periodFrom, periodTo }
+ShiftStats: { count, totalDistance, avgDistance, totalDurationMinutes, avgDurationMinutes, totalHours, totalEarnings, avgEarnings }
+Balance: { totalEarned, totalReceived, remaining }
+CarStatus: { osago, inspection, overall }
+
+=== Роуты (routes.tsx) ===
+
+/         — panel: shifts_panel
+/shifts   — panel: shifts_panel
+/profile  — panel: profile_panel
+
+=== Правила разработки ===
+
+Код файлов — целиком, не фрагментами.
+Только NativeSelect (не Select).
+Без Div (использовать обычный div).
+Регистр имён файлов важен.
+Header использует size="s" (не mode="secondary").
+
+=== 2-й этап (не начат) ===
+
+Шаблоны смен
+Push-напоминания
+Экспорт отчёта (generateCsvReport уже готов)
+Дашборд руководителя
+
+=== Текущее состояние ===
+
+Всё работает. Ошибок нет. Базовый каркас завершён.
