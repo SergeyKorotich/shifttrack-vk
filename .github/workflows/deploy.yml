@@ -30,6 +30,16 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+        # НОВЫЙ ШАГ: копируем _redirects в папку build
+      - name: Copy _redirects to build folder
+        run: |
+          if [ -f _redirects ]; then
+            cp _redirects ./build/
+          else
+            echo "_redirects not found"
+            exit 1
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
