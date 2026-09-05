@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import legacy from '@vitejs/plugin-legacy';
-import basicSsl from '@vitejs/plugin-basic-ssl';
+// basicSsl здесь не нужен — на GitHub Pages он не используется
 
 function handleModuleDirectivesPlugin() {
   return {
@@ -16,11 +16,10 @@ function handleModuleDirectivesPlugin() {
 }
 
 export default defineConfig({
-  base: './',
+  base: '/shifttrack-vk/',  // <-- важно: имя репозитория + слэш
 
   plugins: [
     react(),
-    basicSsl(),
     handleModuleDirectivesPlugin(),
     legacy({
       targets: ['defaults', 'not IE 11'],
@@ -32,6 +31,6 @@ export default defineConfig({
   },
 
   build: {
-    outDir: 'build',
+    outDir: 'build',  // оставляем build — это нормально
   },
 });
