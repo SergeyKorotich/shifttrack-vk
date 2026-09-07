@@ -16,6 +16,11 @@ function daysUntilExpiry(dateStr: string): number | null {
   return Math.floor((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+const monthNames = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+];
+
 export const Home = () => {
   const navigator = useRouteNavigator();
 
@@ -23,6 +28,9 @@ export const Home = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [selYear, setSelYear] = useState(new Date().getFullYear());
+  const [selMonth, setSelMonth] = useState(new Date().getMonth());
 
   useEffect(() => {
     const loadData = async () => {
@@ -37,6 +45,24 @@ export const Home = () => {
     loadData();
   }, []);
 
+  const goPrevMonth = () => {
+    if (selMonth === 0) {
+      setSelYear((y) => y - 1);
+      setSelMonth(11);
+    } else {
+      setSelMonth((m) => m - 1);
+    }
+  };
+
+  const goNextMonth = () => {
+    if (selMonth === 11) {
+      setSelYear((y) => y + 1);
+      setSelMonth(0);
+    } else {
+      setSelMonth((m) => m + 1);
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -48,21 +74,15 @@ export const Home = () => {
     );
   }
 
-  // --- Статистика за текущий месяц ---
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const monthShifts = shifts.filter((s) => s.date.startsWith(currentMonth));
-  const monthPayments = payments.filter((p) => p.date.startsWith(currentMonth));
+  const monthStr = `${selYear}-${String(selMonth + 1).padStart(2, '0')}`;
+  const monthShifts = shifts.filter((s) => s.date.startsWith(monthStr));
+  const monthPayments = payments.filter((p) => p.period === monthStr);
   const monthStats = calculateStats(monthShifts);
 
   const monthEarned = monthStats.totalEarnings;
   const monthReceived = monthPayments.reduce((sum, p) => sum + p.amount, 0);
   const monthRemaining = monthEarned - monthReceived;
 
-  // --- Общая статистика ---
-  const totalStats = calculateStats(shifts);
-
-  // --- Статусы авто ---
   const carStatuses = cars.map((car) => {
     const currentMileage = getCurrentMileage(car.id, shifts);
     const status = calculateCarStatus(car, currentMileage);
@@ -105,13 +125,22 @@ export const Home = () => {
     error: '#FFEBEE',
   };
 
-  const monthName = now.toLocaleDateString('ru-RU', { month: 'long' });
+  const monthName = `${monthNames[selMonth]} ${selYear}`;
 
   return (
     <>
       <PanelHeader>ShiftTrack</PanelHeader>
 
-      {/* --- ВЕРХ: Автомобили --- */}
+      {/* Общая навигация под заголовком */}
+      <Group>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
+        </div>
+      </Group>
+
+      {/* Автомобили */}
       <Group header={<Header size="s">Автомобили</Header>}>
         {cars.length === 0 ? (
           <div style={{ padding: '12px', color: '#8A8A99' }}>Добавьте автомобиль в разделе «Машины»</div>
@@ -126,12 +155,7 @@ export const Home = () => {
                   <div>
                     <div style={{ fontWeight: 600 }}>{car.brand} {car.plate}</div>
                     {status.osagoDays !== null && (
-                      <div
-                        style={{
-                          fontSize: '13px',
-                          color: status.osagoDays <= 7 ? '#D32F2F' : '#8A8A99',
-                        }}
-                      >
+                      <div style={{ fontSize: '13px', color: status.osagoDays <= 7 ? '#D32F2F' : '#8A8A99' }}>
                         ОСАГО: {status.osagoDays > 0 ? `${status.osagoDays} дн.` : 'Истёк'}
                       </div>
                     )}
@@ -142,16 +166,14 @@ export const Home = () => {
                       )}
                     </div>
                   </div>
-                  <div
-                    style={{
-                      color: statusColors[status.overallStatus],
-                      fontWeight: 600,
-                      fontSize: '14px',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      backgroundColor: statusBg[status.overallStatus],
-                    }}
-                  >
+                  <div style={{
+                    color: statusColors[status.overallStatus],
+                    fontWeight: 600,
+                    fontSize: '14px',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: statusBg[status.overallStatus],
+                  }}>
                     {statusTexts[status.overallStatus]}
                   </div>
                 </div>
@@ -161,39 +183,45 @@ export const Home = () => {
         )}
       </Group>
 
-      {/* --- СЕРЕДИНА: Общая статистика (в две строки) --- */}
-      <Group header={<Header size="s">Общая статистика</Header>}>
+      {/* Статистика за выбранный месяц */}
+      <Group header={<Header size="s">Статистика</Header>}>
         <Card mode="outline" style={{ padding: '16px' }}>
-          {/* Первая строка */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <Button size="s" mode="secondary" onClick={goPrevMonth}>←</Button>
+            <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: '16px' }}>
+              {monthName}
+            </div>
+            <Button size="s" mode="secondary" onClick={goNextMonth}>→</Button>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#1A73E8' }}>{totalStats.count}</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#1A73E8' }}>{monthStats.count}</div>
               <div style={{ color: '#8A8A99', fontSize: '12px' }}>смен</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#1B5E20' }}>{totalStats.totalDistance.toLocaleString('ru-RU')}</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#1B5E20' }}>{monthStats.totalDistance.toLocaleString('ru-RU')}</div>
               <div style={{ color: '#8A8A99', fontSize: '12px' }}>км</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#7B61FF' }}>{totalStats.totalHours.toLocaleString('ru-RU')}</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#7B61FF' }}>{monthStats.totalHours.toLocaleString('ru-RU')}</div>
               <div style={{ color: '#8A8A99', fontSize: '12px' }}>часов</div>
             </div>
           </div>
 
-          {/* Вторая строка */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#D32F2F' }}>{totalStats.totalEarnings.toLocaleString('ru-RU')}</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#D32F2F' }}>{monthStats.totalEarnings.toLocaleString('ru-RU')}</div>
               <div style={{ color: '#8A8A99', fontSize: '12px' }}>₽ заработок</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#262629' }}>{totalStats.avgDistance.toLocaleString('ru-RU')}</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#262629' }}>{monthStats.avgDistance.toLocaleString('ru-RU')}</div>
               <div style={{ color: '#8A8A99', fontSize: '12px' }}>км/смена</div>
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '20px', fontWeight: 700, color: '#262629' }}>
-                {totalStats.totalDurationMinutes > 0
-                  ? formatDuration(totalStats.avgDurationMinutes)
+                {monthStats.totalDurationMinutes > 0
+                  ? formatDuration(monthStats.avgDurationMinutes)
                   : '0 ч 0 мин'}
               </div>
               <div style={{ color: '#8A8A99', fontSize: '12px' }}>ср. за смену</div>
@@ -202,7 +230,7 @@ export const Home = () => {
         </Card>
       </Group>
 
-      {/* --- НИЗ: Баланс за месяц --- */}
+      {/* Баланс за выбранный месяц */}
       <Group header={<Header size="s">Баланс за {monthName}</Header>}>
         <Card mode="outline" style={{ padding: '16px' }}>
           <div style={{ fontSize: '28px', fontWeight: 700, color: monthRemaining >= 0 ? '#2688EB' : '#E64646' }}>
@@ -256,18 +284,6 @@ export const Home = () => {
           )}
         </Group>
       )}
-
-      {/* Быстрые действия */}
-      <Group>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          <Button size="m" mode="secondary" onClick={() => navigator.push('/profile')}>
-            Машины
-          </Button>
-          <Button size="m" mode="secondary" onClick={() => navigator.push('/shifts')}>
-            Смены
-          </Button>
-        </div>
-      </Group>
     </>
   );
 };

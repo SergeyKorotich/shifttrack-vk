@@ -5,6 +5,7 @@ export type UserRole = 'admin' | 'employee' | 'none';
 
 export interface Car {
   id: string;
+  driverName: string;  // ← добавить
   brand: string;
   plate: string;
   vin: string;
@@ -35,8 +36,7 @@ export interface Payment {
   date: string;
   type: PaymentType;
   amount: number;
-  periodFrom: string;
-  periodTo: string;
+  period: string; // "YYYY-MM"
 }
 
 export interface ShiftStats {

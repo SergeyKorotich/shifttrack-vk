@@ -9,7 +9,24 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+// Проверяем, запущено ли приложение внутри VK
+const isInVK = bridge.isEmbedded();
+
 export async function loadFromStorage<T>(key: string, defaultValue: T): Promise<T> {
+  // Локальная разработка: используем localStorage
+  if (!isInVK) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        return JSON.parse(raw) as T;
+      }
+    } catch {
+      return defaultValue;
+    }
+    return defaultValue;
+  }
+
+  // В VK: используем VK Storage
   try {
     const response = await withTimeout(
       bridge.send('VKWebAppStorageGet', { keys: [key] }),
@@ -32,6 +49,18 @@ export async function loadFromStorage<T>(key: string, defaultValue: T): Promise<
 }
 
 export async function saveToStorage(key: string, value: unknown): Promise<void> {
+  // Локальная разработка: localStorage
+  if (!isInVK) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return;
+    } catch (error) {
+      console.error(`Не удалось сохранить ключ ${key} в localStorage:`, error);
+      return;
+    }
+  }
+
+  // В VK: VK Storage
   try {
     await withTimeout(
       bridge.send('VKWebAppStorageSet', {
@@ -46,6 +75,11 @@ export async function saveToStorage(key: string, value: unknown): Promise<void> 
 }
 
 export async function deleteFromStorage(key: string): Promise<void> {
+  if (!isInVK) {
+    localStorage.removeItem(key);
+    return;
+  }
+
   try {
     await withTimeout(
       bridge.send('VKWebAppStorageSet', {

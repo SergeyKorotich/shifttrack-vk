@@ -10,9 +10,11 @@ export const Profile = () => {
 
   const [cars, setCars] = useState<Car[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Поля формы
+  const [driverName, setDriverName] = useState('');
   const [brand, setBrand] = useState('');
   const [plate, setPlate] = useState('');
   const [vin, setVin] = useState('');
@@ -33,6 +35,7 @@ export const Profile = () => {
   }, []);
 
   const resetForm = () => {
+    setDriverName('');
     setBrand('');
     setPlate('');
     setVin('');
@@ -42,16 +45,18 @@ export const Profile = () => {
     setInspectionInterval('10000');
     setReminderKm('2000');
     setEditingId(null);
+    setShowForm(false);
   };
 
   const handleAdd = async () => {
-    if (!brand || !plate) {
-      alert('Укажите марку и госномер');
+    if (!driverName || !brand || !plate) {
+      alert('Укажите ФИО водителя, марку и госномер');
       return;
     }
 
     const newCar: Car = {
       id: generateId(),
+      driverName: driverName || '—',
       brand,
       plate,
       vin: vin || '—',
@@ -69,26 +74,29 @@ export const Profile = () => {
   };
 
   const handleEditStart = (car: Car) => {
+    setDriverName(car.driverName === '—' ? '' : car.driverName);
     setBrand(car.brand);
     setPlate(car.plate);
-    setVin(car.vin);
+    setVin(car.vin === '—' ? '' : car.vin);
     setOsagoExpiry(car.osagoExpiry);
     setLastInspectionDate(car.lastInspectionDate);
     setLastInspectionMileage(car.lastInspectionMileage.toString());
     setInspectionInterval(car.inspectionInterval === 15000 ? '15000' : '10000');
     setReminderKm(car.reminderKm.toString());
     setEditingId(car.id);
+    setShowForm(true);
   };
 
   const handleSaveEdit = async () => {
     if (!editingId) return;
-    if (!brand || !plate) {
-      alert('Укажите марку и госномер');
+    if (!driverName || !brand || !plate) {
+      alert('Укажите ФИО водителя, марку и госномер');
       return;
     }
 
     const updatedCar: Car = {
       id: editingId,
+      driverName: driverName || '—',
       brand,
       plate,
       vin: vin || '—',
@@ -125,16 +133,37 @@ export const Profile = () => {
 
   return (
     <Fragment>
-      <PanelHeader>Профиль / Машины</PanelHeader>
+      <PanelHeader>Машины</PanelHeader>
 
-      {editingId === null ? (
-        <Group header={<Header size="s">Добавить автомобиль</Header>}>
+      {/* Навигация вверху */}
+      <Group>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
+        </div>
+      </Group>
+
+      {showForm ? (
+        // Форма добавления / редактирования
+        <Group header={<Header size="s">{editingId ? 'Редактировать автомобиль' : 'Добавить автомобиль'}</Header>}>
+          {/* ФИО водителя — теперь самое первое поле */}
+          <FormItem top="ФИО водителя">
+            <Input
+              type="text"
+              value={driverName}
+              onChange={(e) => setDriverName(e.target.value)}
+              placeholder="Иванов Иван Иванович"
+            />
+          </FormItem>
+
           <FormItem top="Марка авто">
-            <Input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} />
+            <Input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Lada Granta" />
           </FormItem>
           <FormItem top="Госномер">
             <Input type="text" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="А000АА 18" />
           </FormItem>
+
           <FormItem top="VIN (необязательно)">
             <Input type="text" value={vin} onChange={(e) => setVin(e.target.value)} />
           </FormItem>
@@ -178,129 +207,92 @@ export const Profile = () => {
           </FormItem>
 
           <FormItem>
-            <Button size="m" onClick={handleAdd}>Добавить авто</Button>
-          </FormItem>
-        </Group>
-      ) : (
-        <Group header={<Header size="s">Редактировать автомобиль</Header>}>
-          <FormItem top="Марка авто">
-            <Input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} />
-          </FormItem>
-          <FormItem top="Госномер">
-            <Input type="text" value={plate} onChange={(e) => setPlate(e.target.value)} />
-          </FormItem>
-          <FormItem top="VIN">
-            <Input type="text" value={vin} onChange={(e) => setVin(e.target.value)} />
-          </FormItem>
-
-          <div style={{ borderTop: '1px solid #E1E3E6', margin: '16px 0' }} />
-
-          <FormItem top="Дата окончания ОСАГО">
-            <Input type="date" value={osagoExpiry} onChange={(e) => setOsagoExpiry(e.target.value)} />
-          </FormItem>
-
-          <div style={{ borderTop: '1px solid #E1E3E6', margin: '16px 0' }} />
-
-          <FormItem top="Дата последнего ТО">
-            <Input type="date" value={lastInspectionDate} onChange={(e) => setLastInspectionDate(e.target.value)} />
-          </FormItem>
-          <FormItem top="Пробег на момент последнего ТО (км)">
-            <Input
-              type="number"
-              value={lastInspectionMileage}
-              onChange={(e) => setLastInspectionMileage(e.target.value)}
-            />
-          </FormItem>
-          <FormItem top="Регламент ТО (интервал)">
-            <Select
-              value={inspectionInterval}
-              onChange={(e) => setInspectionInterval(e.target.value as '10000' | '15000')}
-              options={[
-                { label: 'Каждые 10 000 км', value: '10000' },
-                { label: 'Каждые 15 000 км', value: '15000' },
-              ]}
-            />
-          </FormItem>
-          <FormItem top="Порог напоминания о ТО (км)">
-            <Input
-              type="number"
-              value={reminderKm}
-              onChange={(e) => setReminderKm(e.target.value)}
-            />
-          </FormItem>
-
-          <FormItem>
             <div style={{ display: 'flex', gap: '8px' }}>
               <Button size="m" mode="secondary" onClick={resetForm}>Отмена</Button>
-              <Button size="m" onClick={handleSaveEdit}>Сохранить</Button>
+              <Button size="m" onClick={editingId ? handleSaveEdit : handleAdd}>
+                {editingId ? 'Сохранить' : 'Добавить авто'}
+              </Button>
             </div>
           </FormItem>
         </Group>
-      )}
-
-      <Group header={<Header size="s">Список автомобилей</Header>}>
-        {cars.length === 0 ? (
-          <div style={{ padding: '12px', color: '#8A8A99', fontSize: '14px' }}>
-            Автомобилей пока нет. Добавьте первый выше.
-          </div>
-        ) : (
-          cars.map((car) => {
-            // Текущий пробег = максимальный odometerEnd среди смен этого авто
-            const currentMileage = getCurrentMileage(car.id, shifts);
-            const status = calculateCarStatus(car, currentMileage);
-            const nextTo = car.lastInspectionMileage + car.inspectionInterval;
-            const remaining = currentMileage !== undefined ? nextTo - currentMileage : null;
-
-            return (
-              <div key={car.id} style={{ padding: '12px', borderBottom: '1px solid #E1E3E6' }}>
-                <div style={{ fontWeight: 600, fontSize: '15px' }}>
-                  {car.brand} {car.plate}
-                  <span style={{ marginLeft: '8px', fontSize: '13px', color: statusColors[status.overall] }}>
-                    {statusText[status.overall]}
-                  </span>
-                </div>
-                <div style={{ marginTop: '4px', fontSize: '13px', color: '#6D7885' }}>
-                  VIN: {car.vin}
-                </div>
-                <div style={{ marginTop: '8px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: '13px' }}>ОСАГО: {car.osagoExpiry || 'не указано'}</div>
-                  <div style={{ fontSize: '13px' }}>
-                    Последнее ТО: {car.lastInspectionDate || 'не указано'}, {car.lastInspectionMileage} км
-                  </div>
-                  <div style={{ fontSize: '13px' }}>Следующее ТО: {nextTo} км</div>
-                  <div style={{ fontSize: '13px' }}>
-                    Текущий пробег: {currentMileage !== undefined ? `${currentMileage} км` : 'нет смен'}
-                  </div>
-                  {remaining !== null && (
-                    <div style={{ fontSize: '13px', color: remaining <= 0 ? '#D32F2F' : remaining <= car.reminderKm ? '#FFA000' : '#8A8A99' }}>
-                      До ТО: {remaining > 0 ? `${remaining} км` : 'просрочено'}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                  <Button size="s" mode="secondary" onClick={() => handleEditStart(car)}>Изменить</Button>
-                  <Button
-                    size="s"
-                    mode="secondary"
-                    style={{ color: '#D32F2F' }}
-                    onClick={() => handleDelete(car.id)}
-                  >
-                    Удалить
-                  </Button>
-                </div>
+      ) : (
+        // Список автомобилей + кнопка добавления
+        <Fragment>
+          <Group header={<Header size="s">Список автомобилей</Header>}>
+            {cars.length === 0 ? (
+              <div style={{ padding: '12px', color: '#8A8A99', fontSize: '14px' }}>
+                Автомобилей пока нет. Нажмите «Добавить авто» ниже.
               </div>
-            );
-          })
-        )}
-      </Group>
+            ) : (
+              cars.map((car) => {
+                const currentMileage = getCurrentMileage(car.id, shifts);
+                const status = calculateCarStatus(car, currentMileage);
+                const nextTo = car.lastInspectionMileage + car.inspectionInterval;
+                const remaining = currentMileage !== undefined ? nextTo - currentMileage : null;
 
-      <Group>
-        <div style={{ padding: '12px', display: 'flex', gap: '8px' }}>
-          <Button size="m" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
-          <Button size="m" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
-        </div>
-      </Group>
+                return (
+                  <div key={car.id} style={{ padding: '12px', borderBottom: '1px solid #E1E3E6' }}>
+                    <div style={{ fontWeight: 600, fontSize: '15px' }}>
+                      {car.brand} {car.plate}
+                      <span style={{ marginLeft: '8px', fontSize: '13px', color: statusColors[status.overall] }}>
+                        {statusText[status.overall]}
+                      </span>
+                    </div>
+                    {car.driverName && car.driverName !== '—' && (
+                      <div style={{ marginTop: '4px', fontSize: '13px', color: '#6D7885' }}>
+                        Водитель: {car.driverName}
+                      </div>
+                    )}
+                    <div style={{ marginTop: '4px', fontSize: '13px', color: '#6D7885' }}>
+                      VIN: {car.vin}
+                    </div>
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: '13px' }}>ОСАГО: {car.osagoExpiry || 'не указано'}</div>
+                      <div style={{ fontSize: '13px' }}>
+                        Последнее ТО: {car.lastInspectionDate || 'не указано'}, {car.lastInspectionMileage} км
+                      </div>
+                      <div style={{ fontSize: '13px' }}>Следующее ТО: {nextTo} км</div>
+                      <div style={{ fontSize: '13px' }}>
+                        Текущий пробег: {currentMileage !== undefined ? `${currentMileage} км` : 'нет смен'}
+                      </div>
+                      {remaining !== null && (
+                        <div style={{ fontSize: '13px', color: remaining <= 0 ? '#D32F2F' : remaining <= car.reminderKm ? '#FFA000' : '#8A8A99' }}>
+                          До ТО: {remaining > 0 ? `${remaining} км` : 'просрочено'}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                      <Button size="s" mode="secondary" onClick={() => handleEditStart(car)}>Изменить</Button>
+                      <Button
+                        size="s"
+                        mode="secondary"
+                        style={{ color: '#D32F2F' }}
+                        onClick={() => handleDelete(car.id)}
+                      >
+                        Удалить
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </Group>
+
+          <Group>
+            <div style={{ padding: '12px' }}>
+              <Button
+                size="m"
+                mode="primary"
+                style={{ width: '100%' }}
+                onClick={() => setShowForm(true)}
+              >
+                + Добавить авто
+              </Button>
+            </div>
+          </Group>
+        </Fragment>
+      )}
     </Fragment>
   );
 };

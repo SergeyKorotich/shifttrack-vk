@@ -5,7 +5,7 @@ import {
 } from '@vkontakte/vkui';
 import { loadFromStorage, saveToStorage } from '../utils/storage';
 import { calculateShift, generateId, formatDate, formatDuration } from '../utils/shiftUtils';
-import type { Shift, Car, TariffType } from '../types';
+import type { Shift, Car, Payment, TariffType, PaymentType } from '../types';
 
 function getDaysInMonth(year: number, month: number) {
   const lastDay = new Date(year, month + 1, 0);
@@ -17,9 +17,8 @@ function getDaysInMonth(year: number, month: number) {
   return days;
 }
 
-// Смещение первого дня месяца (Пн = 0, Вс = 6)
 function getFirstDayOffset(year: number, month: number) {
-  const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0=Вс, 1=Пн, ...
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
   return firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 }
 
@@ -48,15 +47,40 @@ function getDaySummary(dayShifts: Shift[]) {
   return { totalDistance, totalEarnings, totalDurationMinutes };
 }
 
+const paymentTypeLabels: Record<PaymentType, string> = {
+  salary: 'Зарплата',
+  advance: 'Аванс',
+  bonus: 'Премия',
+};
+
+const monthNames = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+];
+
+function formatPeriod(period: string): string {
+  if (!period) return '—';
+  const [y, m] = period.split('-').map(Number);
+  if (!y || !m) return period;
+  return `${monthNames[m - 1]} ${y}`;
+}
+
+function todayStr(): string {
+  const d = new Date();
+  return formatDate(d);
+}
+
 export const Shifts = () => {
   const navigator = useRouteNavigator();
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
 
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth());
 
+  // Форма смены
   const [carId, setCarId] = useState('');
   const [route, setRoute] = useState('');
   const [odometerStart, setOdometerStart] = useState('');
@@ -69,14 +93,22 @@ export const Shifts = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
 
+  // Форма выплаты
+  const [paymentType, setPaymentType] = useState<PaymentType>('advance');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMonth, setPaymentMonth] = useState('');
+  const [paymentDate, setPaymentDate] = useState(todayStr());
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+
   useEffect(() => {
     const loadData = async () => {
       const s = await loadFromStorage<Shift[]>('shifttrack_shifts', []);
       const c = await loadFromStorage<Car[]>('shifttrack_cars', []);
+      const p = await loadFromStorage<Payment[]>('shifttrack_payments', []);
       setShifts(s);
       setCars(c);
+      setPayments(p);
 
-      // Предзаполнение тарифа из последней смены
       if (s.length > 0) {
         const sorted = [...s].sort((a, b) => b.date.localeCompare(a.date));
         const lastShift = sorted[0];
@@ -87,7 +119,13 @@ export const Shifts = () => {
     loadData();
   }, []);
 
-  // Предзаполнение формы при выборе даты
+  // Синхронизация месяца выплат с месяцем календаря
+  useEffect(() => {
+    const m = String(month + 1).padStart(2, '0');
+    setPaymentMonth(`${year}-${m}`);
+  }, [year, month]);
+
+  // Предзаполнение формы смены при выборе даты
   useEffect(() => {
     if (!selectedDate) {
       setEditingShiftId(null);
@@ -100,7 +138,6 @@ export const Shifts = () => {
     const lastShiftOverall = sortedAll[0] || null;
 
     if (dayShifts.length > 0) {
-      // День со сменами — подгружаем последнюю смену
       const lastShift = dayShifts[dayShifts.length - 1];
       setCarId(lastShift.carId);
       setRoute(lastShift.route === '—' ? '' : lastShift.route);
@@ -112,7 +149,6 @@ export const Shifts = () => {
       setTimeEnd(lastShift.timeEnd || '');
       setEditingShiftId(lastShift.id);
     } else {
-      // Пустой день — предзаполнение из последней смены
       setEditingShiftId(null);
       setRoute('');
       setOdometerEnd('');
@@ -139,7 +175,6 @@ export const Shifts = () => {
     timeEnd || undefined,
   );
 
-  // Сохранить изменения в существующей смене
   const handleSave = async () => {
     if (!editingShiftId) return;
     if (!carId) {
@@ -171,7 +206,6 @@ export const Shifts = () => {
     setSelectedDate(null);
   };
 
-  // Добавить новую смену и перейти на следующий день
   const handleAdd = async () => {
     if (!carId) {
       alert('Выберите автомобиль');
@@ -198,7 +232,6 @@ export const Shifts = () => {
     setShifts(updated);
     await saveToStorage('shifttrack_shifts', updated);
 
-    // Переход на следующий день
     const nextDay = new Date(selectedDate);
     nextDay.setDate(nextDay.getDate() + 1);
 
@@ -212,7 +245,6 @@ export const Shifts = () => {
     setSelectedDate(nextDay);
   };
 
-  // Удалить текущую смену
   const handleDelete = async () => {
     if (!editingShiftId) return;
     if (!confirm('Удалить эту смену?')) return;
@@ -227,11 +259,84 @@ export const Shifts = () => {
       if (remaining.length === 0) {
         setSelectedDate(null);
       }
-      // Если остались — эффект перезагрузит форму со следующей сменой
     } else {
       setSelectedDate(null);
     }
   };
+
+  // --- Выплаты ---
+
+  const resetPaymentForm = () => {
+    setPaymentType('advance');
+    setPaymentAmount('');
+    setPaymentDate(todayStr());
+    setEditingPaymentId(null);
+  };
+
+  const handleAddPayment = async () => {
+    if (!paymentAmount || Number(paymentAmount) <= 0) {
+      alert('Укажите сумму выплаты');
+      return;
+    }
+    if (!paymentMonth) {
+      alert('Выберите месяц');
+      return;
+    }
+    if (!paymentDate) {
+      alert('Выберите дату выплаты');
+      return;
+    }
+
+    if (editingPaymentId) {
+      const updated = payments.map((p) => {
+        if (p.id === editingPaymentId) {
+          return {
+            ...p,
+            type: paymentType,
+            amount: Number(paymentAmount),
+            period: paymentMonth,
+            date: paymentDate,
+          };
+        }
+        return p;
+      });
+      setPayments(updated);
+      await saveToStorage('shifttrack_payments', updated);
+    } else {
+      const newPayment: Payment = {
+        id: generateId(),
+        date: paymentDate,
+        type: paymentType,
+        amount: Number(paymentAmount),
+        period: paymentMonth,
+      };
+      const updated = [...payments, newPayment];
+      setPayments(updated);
+      await saveToStorage('shifttrack_payments', updated);
+    }
+
+    resetPaymentForm();
+  };
+
+  const handleEditPayment = (p: Payment) => {
+    setPaymentType(p.type);
+    setPaymentAmount(p.amount.toString());
+    setPaymentDate(p.date);
+    setPaymentMonth(p.period);
+    setEditingPaymentId(p.id);
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    if (!confirm('Удалить эту выплату?')) return;
+    const updated = payments.filter((p) => p.id !== id);
+    setPayments(updated);
+    await saveToStorage('shifttrack_payments', updated);
+    if (editingPaymentId === id) {
+      resetPaymentForm();
+    }
+  };
+
+  // ---
 
   const grouped = groupShiftsByDate(shifts);
   const days = getDaysInMonth(year, month);
@@ -255,12 +360,25 @@ export const Shifts = () => {
     }
   };
 
+  const paymentsForMonth = payments.filter((p) => p.period === paymentMonth);
+  const totalPaymentsForMonth = paymentsForMonth.reduce((s, p) => s + p.amount, 0);
+
   return (
     <Fragment>
       <PanelHeader>Смены</PanelHeader>
 
+      {/* Общая навигация под заголовком */}
+      <Group>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
+        </div>
+      </Group>
+
       {selectedDate === null ? (
         <Fragment>
+          {/* Календарь смен */}
           <Group header={<Header size="s">Календарь смен</Header>}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Button size="s" mode="secondary" onClick={goPrevMonth}>←</Button>
@@ -279,7 +397,6 @@ export const Shifts = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', marginTop: '8px' }}>
-              {/* Пустые ячейки до первого дня месяца */}
               {Array.from({ length: firstDayOffset }).map((_, i) => (
                 <div key={`empty-${i}`} style={{ height: '84px' }} />
               ))}
@@ -330,9 +447,118 @@ export const Shifts = () => {
               })}
             </div>
           </Group>
+
+          {/* Форма выплаты */}
+          <Group header={<Header size="s">Добавить выплату</Header>}>
+            <FormItem top="Дата выплаты">
+              <Input
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+              />
+            </FormItem>
+
+            <FormItem top="Тип выплаты">
+              <Select
+                value={paymentType}
+                onChange={(e) => setPaymentType(e.target.value as PaymentType)}
+                options={[
+                  { label: 'Аванс', value: 'advance' },
+                  { label: 'Зарплата', value: 'salary' },
+                  { label: 'Премия', value: 'bonus' },
+                ]}
+              />
+            </FormItem>
+
+            <FormItem top="Сумма, ₽">
+              <Input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder="5000"
+              />
+            </FormItem>
+
+            <FormItem top="За месяц">
+              <Input
+                type="month"
+                value={paymentMonth}
+                onChange={(e) => setPaymentMonth(e.target.value)}
+              />
+            </FormItem>
+
+            <FormItem>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button size="m" onClick={handleAddPayment}>
+                  {editingPaymentId ? 'Сохранить' : 'Добавить выплату'}
+                </Button>
+                {editingPaymentId && (
+                  <Button size="m" mode="secondary" onClick={resetPaymentForm}>
+                    Отмена
+                  </Button>
+                )}
+              </div>
+            </FormItem>
+          </Group>
+
+          {/* Список выплат и итог — внизу под кнопкой */}
+          <Group header={<Header size="s">Выплаты за {formatPeriod(paymentMonth)}</Header>}>
+            {paymentsForMonth.length > 0 && (
+              <div>
+                {paymentsForMonth.map((p) => (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 0',
+                      borderBottom: '1px solid #E1E3E6',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                        {paymentTypeLabels[p.type]}: {p.amount.toLocaleString('ru-RU')} ₽
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#8A8A99' }}>
+                        За: {formatPeriod(p.period)} · выплата: {p.date}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <Button
+                        size="s"
+                        mode="secondary"
+                        onClick={() => handleEditPayment(p)}
+                      >
+                        Изменить
+                      </Button>
+                      <Button
+                        size="s"
+                        mode="secondary"
+                        style={{ color: '#D32F2F' }}
+                        onClick={() => handleDeletePayment(p.id)}
+                      >
+                        Удалить
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: '12px', padding: '12px', textAlign: 'center', borderTop: '2px solid #7B61FF' }}>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: '#7B61FF' }}>
+                {totalPaymentsForMonth.toLocaleString('ru-RU')} ₽
+              </div>
+              <div style={{ color: '#8A8A99', fontSize: '13px' }}>
+                Всего выплат за {formatPeriod(paymentMonth)}
+              </div>
+            </div>
+          </Group>
         </Fragment>
       ) : (
         <Fragment>
+          {/* Форма дня (только смены) */}
           <Group>
             <Button size="m" mode="secondary" onClick={() => setSelectedDate(null)}>← Назад к календарю</Button>
           </Group>
@@ -433,13 +659,6 @@ export const Shifts = () => {
           </Group>
         </Fragment>
       )}
-
-      <Group>
-        <div style={{ padding: '12px', display: 'flex', gap: '8px' }}>
-          <Button size="m" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
-          <Button size="m" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
-        </div>
-      </Group>
     </Fragment>
   );
 };
