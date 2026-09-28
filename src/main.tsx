@@ -1,40 +1,46 @@
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from '@vkontakte/vk-mini-apps-router';
-import { ConfigProvider, AdaptivityProvider } from '@vkontakte/vkui';
+import { ConfigProvider, AdaptivityProvider, AppRoot } from '@vkontakte/vkui';
 import '@vkontakte/vkui/dist/vkui.css';
 
-import bridge from '@vkontakte/vk-bridge';
+import vkBridge, { parseURLSearchParamsForGetLaunchParams } from '@vkontakte/vk-bridge';
+import { useAppearance, useInsets, useAdaptivity } from '@vkontakte/vk-bridge-react';
+
 import { router } from './router';
 import { App } from './App';
+import { transformVKBridgeAdaptivity } from './helpers/transformVKBridgeAdaptivity';
+
+// Инициализация VK Mini App — первой строкой, синхронно
+vkBridge.send('VKWebAppInit');
+
+const Root = () => {
+  const colorScheme = useAppearance() || undefined;
+  const insets = useInsets() || undefined;
+  const adaptivityProps = transformVKBridgeAdaptivity(useAdaptivity());
+  const { vk_platform } = parseURLSearchParamsForGetLaunchParams(window.location.search);
+
+  return (
+    <ConfigProvider
+      colorScheme={colorScheme}
+      platform={vk_platform === 'desktop_web' ? 'vkcom' : undefined}
+      isWebView={vkBridge.isWebView()}
+      hasCustomPanelHeaderAfter={true}
+    >
+      <AdaptivityProvider {...adaptivityProps}>
+        <AppRoot mode="full" safeAreaInsets={insets}>
+          <RouterProvider router={router}>
+            <App />
+          </RouterProvider>
+        </AppRoot>
+      </AdaptivityProvider>
+    </ConfigProvider>
+  );
+};
 
 const container = document.getElementById('root');
 
-function renderApp() {
-  if (!container) {
-    console.error('#root не найден в index.html');
-    return;
-  }
-  createRoot(container).render(
-    <ConfigProvider>
-      <AdaptivityProvider>
-        <RouterProvider router={router}>
-          <App />
-        </RouterProvider>
-      </AdaptivityProvider>
-    </ConfigProvider>,
-  );
+if (!container) {
+  console.error('#root не найден в index.html');
+} else {
+  createRoot(container).render(<Root />);
 }
-
-// Сначала рендерим сразу, чтобы не было пустой страницы
-renderApp();
-
-// Потом пытаемся отправить VKWebAppInit — но это уже не блокирует интерфейс
-bridge
-  .send('VKWebAppInit')
-  .then(() => {
-    // Можно добавить логирование, если нужно
-  })
-  .catch((err) => {
-    // В локальной разработке это нормально — VK не отвечает
-    console.warn('VKWebAppInit не сработал (локальная среда):', err);
-  });
