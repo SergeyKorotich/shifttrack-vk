@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  AppRoot, SplitLayout, SplitCol, View, Panel, ConfigProvider,
-} from '@vkontakte/vkui';
+import { SplitLayout, SplitCol, View, Panel, ConfigProvider } from '@vkontakte/vkui';
 import { useActiveVkuiLocation } from '@vkontakte/vk-mini-apps-router';
 import { Home } from './panels/Home';
 import { Shifts } from './panels/Shifts';
@@ -42,27 +40,25 @@ export const App = () => {
   };
 
   return (
-    <AppRoot>
-      <ConfigProvider colorScheme={colorScheme}>
-        <SplitLayout header={null}>
-          <SplitCol stretchedOnMobile autoSpaced>
-            <View id="default" activePanel={activePanel}>
-              <Panel id="home">
-                <Home />
-              </Panel>
-              <Panel id="shifts">
-                <Shifts />
-              </Panel>
-              <Panel id="profile">
-                <Profile />
-              </Panel>
-              <Panel id="settings">
-                <Settings onThemeChange={handleThemeChange} />
-              </Panel>
-            </View>
-          </SplitCol>
-        </SplitLayout>
-      </ConfigProvider>
-    </AppRoot>
+    <ConfigProvider colorScheme={colorScheme}>
+      <SplitLayout header={null}>
+        <SplitCol stretchedOnMobile autoSpaced>
+          <View id="default" activePanel={activePanel}>
+            <Panel id="home">
+              <Home />
+            </Panel>
+            <Panel id="shifts">
+              <Shifts />
+            </Panel>
+            <Panel id="profile">
+              <Profile />
+            </Panel>
+            <Panel id="settings">
+              <Settings onThemeChange={handleThemeChange} />
+            </Panel>
+          </View>
+        </SplitCol>
+      </SplitLayout>
+    </ConfigProvider>
   );
 };
