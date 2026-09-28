@@ -10,6 +10,15 @@ import { router } from './router';
 import { App } from './App';
 import { transformVKBridgeAdaptivity } from './helpers/transformVKBridgeAdaptivity';
 
+// В самом верху файла main.tsx, после импортов
+window.addEventListener('error', (e) => {
+  console.error('Глобальная ошибка JS:', e.message, e.filename, e.lineno, e.colno);
+});
+
+window.onunhandledrejection = (e: any) => {
+  console.error('Необработанный промис:', e.reason);
+};
+
 // Инициализация VK Mini App — первой строкой, синхронно
 vkBridge.send('VKWebAppInit');
 
