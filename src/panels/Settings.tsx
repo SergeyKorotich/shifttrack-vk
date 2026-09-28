@@ -42,21 +42,31 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
   const [reportHeader, setReportHeader] = useState('');
 
   useEffect(() => {
-    const load = async () => {
+  const load = async () => {
+    try {
+      console.log('Settings: начинаем загрузку профиля...');
       const u = await getCurrentUser();
+      console.log('Settings: профиль получен:', u);
       setUser(u);
       setFio(u?.fio || '');
 
       const s = await loadFromStorage<AppSettings>(SETTINGS_KEY, DEFAULT_SETTINGS);
+      console.log('Settings: настройки загружены:', s);
       setSettings(s);
       setReportFileName(s.report.fileName);
       setReportHeader(s.report.header);
 
       setLoading(false);
       if (u) await saveToStorage('shifttrack_user', u);
-    };
-    load();
-  }, []);
+    } catch (e) {
+      console.error('Settings: критическая ошибка загрузки:', e);
+    } finally {
+      // Даже если ошибка — снимаем лоадер, чтобы видеть, что панель вообще рендерится
+      setLoading(false);
+    }
+  };
+  load();
+}, []);
 
   const handleThemeChange = async (theme: Theme) => {
     const updated = { ...settings, theme };
