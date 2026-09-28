@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import {
-  PanelHeader, Group, Header, Button, Card,
+  PanelHeader, Group, Header, Button, Card, Div,
 } from '@vkontakte/vkui';
 import { loadFromStorage } from '../utils/storage';
 import { calculateCarStatus, getCurrentMileage, calculateStats, formatDuration } from '../utils/shiftUtils';
@@ -34,13 +34,18 @@ export const Home = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      const c = await loadFromStorage<Car[]>('shifttrack_cars', []);
-      const s = await loadFromStorage<Shift[]>('shifttrack_shifts', []);
-      const p = await loadFromStorage<Payment[]>('shifttrack_payments', []);
-      setCars(c);
-      setShifts(s);
-      setPayments(p);
-      setLoading(false);
+      try {
+        const c = await loadFromStorage<Car[]>('shifttrack_cars', []);
+        const s = await loadFromStorage<Shift[]>('shifttrack_shifts', []);
+        const p = await loadFromStorage<Payment[]>('shifttrack_payments', []);
+        setCars(c);
+        setShifts(s);
+        setPayments(p);
+      } catch (e) {
+        console.error('Ошибка загрузки данных в Home.tsx', e);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, []);
@@ -68,7 +73,9 @@ export const Home = () => {
       <>
         <PanelHeader>ShiftTrack</PanelHeader>
         <Group>
-          <div style={{ padding: '24px', textAlign: 'center', color: '#8A8A99' }}>Загрузка данных...</div>
+          <Div style={{ textAlign: 'center', color: 'var(--vkui--text_secondary)' }}>
+            Загрузка данных...
+          </Div>
         </Group>
       </>
     );
@@ -110,9 +117,9 @@ export const Home = () => {
   const toErrors = carStatuses.filter((c) => c.inspectionStatus === 'error');
 
   const statusColors: Record<StatusType, string> = {
-    default: '#1B5E20',
-    warning: '#FFA000',
-    error: '#D32F2F',
+    default: 'var(--vkui--color_accent_positive)',
+    warning: 'var(--vkui--color_accent_attention)',
+    error: 'var(--vkui--color_accent_negative)',
   };
   const statusTexts: Record<StatusType, string> = {
     default: 'В норме',
@@ -120,9 +127,9 @@ export const Home = () => {
     error: 'Просрочено',
   };
   const statusBg: Record<StatusType, string> = {
-    default: '#E8F5E9',
-    warning: '#FFF8E1',
-    error: '#FFEBEE',
+    default: 'var(--vkui--color_background_positive_subdued)',
+    warning: 'var(--vkui--color_background_attention_subdued)',
+    error: 'var(--vkui--color_background_negative_subdued)',
   };
 
   const monthName = `${monthNames[selMonth]} ${selYear}`;
@@ -131,19 +138,20 @@ export const Home = () => {
     <>
       <PanelHeader>ShiftTrack</PanelHeader>
 
-      {/* Общая навигация под заголовком */}
       <Group>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+        <Div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
-        </div>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/settings')}>Настройки</Button>
+        </Div>
       </Group>
 
-      {/* Автомобили */}
       <Group header={<Header size="s">Автомобили</Header>}>
         {cars.length === 0 ? (
-          <div style={{ padding: '12px', color: '#8A8A99' }}>Добавьте автомобиль в разделе «Машины»</div>
+          <Div style={{ color: 'var(--vkui--text_secondary)' }}>
+            Добавьте автомобиль в разделе «Машины»
+          </Div>
         ) : (
           cars.map((car) => {
             const status = carStatuses.find((s) => s.id === car.id);
@@ -153,13 +161,20 @@ export const Home = () => {
               <Card key={car.id} mode="shadow" style={{ padding: '12px', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{car.brand} {car.plate}</div>
+                    <div style={{ fontWeight: 600, color: 'var(--vkui--text_primary)' }}>
+                      {car.brand} {car.plate}
+                    </div>
                     {status.osagoDays !== null && (
-                      <div style={{ fontSize: '13px', color: status.osagoDays <= 7 ? '#D32F2F' : '#8A8A99' }}>
+                      <div style={{
+                        fontSize: '13px',
+                        color: status.osagoDays <= 7
+                          ? 'var(--vkui--color_accent_negative)'
+                          : 'var(--vkui--text_secondary)',
+                      }}>
                         ОСАГО: {status.osagoDays > 0 ? `${status.osagoDays} дн.` : 'Истёк'}
                       </div>
                     )}
-                    <div style={{ fontSize: '13px', color: '#8A8A99', marginTop: '2px' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--vkui--text_secondary)', marginTop: '2px' }}>
                       Пробег: {status.currentMileage !== undefined ? `${status.currentMileage} км` : 'нет смен'}
                       {status.remaining !== null && status.remaining > 0 && (
                         <> · до ТО: {status.remaining} км</>
@@ -183,70 +198,81 @@ export const Home = () => {
         )}
       </Group>
 
-      {/* Статистика за выбранный месяц */}
       <Group header={<Header size="s">Статистика</Header>}>
-        <Card mode="outline" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <Button size="s" mode="secondary" onClick={goPrevMonth}>←</Button>
-            <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: '16px' }}>
-              {monthName}
-            </div>
-            <Button size="s" mode="secondary" onClick={goNextMonth}>→</Button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#1A73E8' }}>{monthStats.count}</div>
-              <div style={{ color: '#8A8A99', fontSize: '12px' }}>смен</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#1B5E20' }}>{monthStats.totalDistance.toLocaleString('ru-RU')}</div>
-              <div style={{ color: '#8A8A99', fontSize: '12px' }}>км</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#7B61FF' }}>{monthStats.totalHours.toLocaleString('ru-RU')}</div>
-              <div style={{ color: '#8A8A99', fontSize: '12px' }}>часов</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#D32F2F' }}>{monthStats.totalEarnings.toLocaleString('ru-RU')}</div>
-              <div style={{ color: '#8A8A99', fontSize: '12px' }}>₽ заработок</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#262629' }}>{monthStats.avgDistance.toLocaleString('ru-RU')}</div>
-              <div style={{ color: '#8A8A99', fontSize: '12px' }}>км/смена</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#262629' }}>
-                {monthStats.totalDurationMinutes > 0
-                  ? formatDuration(monthStats.avgDurationMinutes)
-                  : '0 ч 0 мин'}
+        <Card mode="outline">
+          <Div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <Button size="s" mode="secondary" onClick={goPrevMonth}>←</Button>
+              <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: '16px', color: 'var(--vkui--text_primary)' }}>
+                {monthName}
               </div>
-              <div style={{ color: '#8A8A99', fontSize: '12px' }}>ср. за смену</div>
+              <Button size="s" mode="secondary" onClick={goNextMonth}>→</Button>
             </div>
-          </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--vkui--text_primary)' }}>{monthStats.count}</div>
+                <div style={{ color: 'var(--vkui--text_secondary)', fontSize: '12px' }}>смен</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--vkui--color_accent_positive)' }}>{monthStats.totalDistance.toLocaleString('ru-RU')}</div>
+                <div style={{ color: 'var(--vkui--text_secondary)', fontSize: '12px' }}>км</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--vkui--text_primary)' }}>{monthStats.totalHours.toLocaleString('ru-RU')}</div>
+                <div style={{ color: 'var(--vkui--text_secondary)', fontSize: '12px' }}>часов</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--vkui--color_accent_negative)' }}>{monthStats.totalEarnings.toLocaleString('ru-RU')}</div>
+                <div style={{ color: 'var(--vkui--text_secondary)', fontSize: '12px' }}>₽ заработок</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--vkui--text_primary)' }}>{monthStats.avgDistance.toLocaleString('ru-RU')}</div>
+                <div style={{ color: 'var(--vkui--text_secondary)', fontSize: '12px' }}>км/смена</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--vkui--text_primary)' }}>
+                  {monthStats.totalDurationMinutes > 0
+                    ? formatDuration(monthStats.avgDurationMinutes)
+                    : '0 ч 0 мин'}
+                </div>
+                <div style={{ color: 'var(--vkui--text_secondary)', fontSize: '12px' }}>ср. за смену</div>
+              </div>
+            </div>
+          </Div>
         </Card>
       </Group>
 
-      {/* Баланс за выбранный месяц */}
       <Group header={<Header size="s">Баланс за {monthName}</Header>}>
-        <Card mode="outline" style={{ padding: '16px' }}>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: monthRemaining >= 0 ? '#2688EB' : '#E64646' }}>
-            {monthRemaining.toLocaleString('ru-RU')} ₽
-          </div>
-          <div style={{ fontSize: '13px', color: '#8A8A99', marginTop: '4px' }}>
-            Заработано: {monthEarned.toLocaleString('ru-RU')} ₽ · Выплачено: {monthReceived.toLocaleString('ru-RU')} ₽
-          </div>
+        <Card mode="outline">
+          <Div>
+            <div style={{
+              fontSize: '28px',
+              fontWeight: 700,
+              color: monthRemaining >= 0
+                ? 'var(--vkui--color_accent_primary)'
+                : 'var(--vkui--color_accent_negative)',
+            }}>
+              {monthRemaining.toLocaleString('ru-RU')} ₽
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--vkui--text_secondary)', marginTop: '4px' }}>
+              Заработано: {monthEarned.toLocaleString('ru-RU')} ₽ · Выплачено: {monthReceived.toLocaleString('ru-RU')} ₽
+            </div>
+          </Div>
         </Card>
       </Group>
 
-      {/* Предупреждения */}
       {(osagoWarnings.length > 0 || toWarnings.length > 0 || toErrors.length > 0) && (
         <Group header={<Header size="s">Предупреждения</Header>}>
           {osagoWarnings.length > 0 && (
-            <div style={{ padding: '12px', background: '#FFF3CD', borderRadius: '8px', color: '#856404' }}>
+            <Div style={{
+              borderRadius: '8px',
+              backgroundColor: 'var(--vkui--color_background_attention_subdued)',
+              color: 'var(--vkui--color_accent_attention)',
+            }}>
               ⚠️ ОСАГО скоро истекает (≤ 30 дней):{' '}
               {osagoWarnings.map((a, i) => (
                 <span key={i}>
@@ -254,11 +280,16 @@ export const Home = () => {
                   {i < osagoWarnings.length - 1 ? ', ' : ''}
                 </span>
               ))}
-            </div>
+            </Div>
           )}
 
           {toWarnings.length > 0 && (
-            <div style={{ padding: '12px', marginTop: '8px', background: '#FFECB3', borderRadius: '8px', color: '#795548' }}>
+            <Div style={{
+              marginTop: '8px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--vkui--color_background_attention_subdued)',
+              color: 'var(--vkui--color_accent_attention)',
+            }}>
               ⚠️ Скоро ТО (осталось ≤ порога напоминания):{' '}
               {toWarnings.map((a, i) => (
                 <span key={i}>
@@ -267,11 +298,16 @@ export const Home = () => {
                   {i < toWarnings.length - 1 ? ', ' : ''}
                 </span>
               ))}
-            </div>
+            </Div>
           )}
 
           {toErrors.length > 0 && (
-            <div style={{ padding: '12px', marginTop: '8px', background: '#FFEBEE', borderRadius: '8px', color: '#C62828' }}>
+            <Div style={{
+              marginTop: '8px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--vkui--color_background_negative_subdued)',
+              color: 'var(--vkui--color_accent_negative)',
+            }}>
               ❌ Просрочено ТО:{' '}
               {toErrors.map((a, i) => (
                 <span key={i}>
@@ -280,7 +316,7 @@ export const Home = () => {
                   {i < toErrors.length - 1 ? ', ' : ''}
                 </span>
               ))}
-            </div>
+            </Div>
           )}
         </Group>
       )}

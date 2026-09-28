@@ -1,6 +1,7 @@
 import type {
   Car, Shift, Payment, ShiftStats, Balance,
   CarStatus, StatusType, TariffType,
+  TariffEntry, 
 } from '../types';
 
 export function formatDate(date: Date): string {
@@ -17,6 +18,29 @@ export function parseDate(dateStr: string): Date {
 
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/**
+ * Получает актуальный тариф (kmRate / hourRate) на дату смены.
+ * Берётся последняя запись, где effectiveFrom <= shiftDate.
+ */
+export function getTariffForDate(
+  tariffs: TariffEntry[],
+  shiftDate: string,
+): { kmRate: number; hourRate: number } | null {
+  if (!tariffs.length) return null;
+
+  const shiftMs = parseDate(shiftDate).getTime();
+
+  // Фильтруем тарифы, действующие на дату смены
+  const valid = tariffs.filter((t) => parseDate(t.effectiveFrom).getTime() <= shiftMs);
+
+  if (!valid.length) return null;
+
+  // Сортируем по дате (новые позже) и берём последний
+  valid.sort((a, b) => parseDate(b.effectiveFrom).getTime() - parseDate(a.effectiveFrom).getTime());
+
+  return { kmRate: valid[0].kmRate, hourRate: valid[0].hourRate };
 }
 
 export function calculateShift(
@@ -94,7 +118,6 @@ export function calculateBalance(shifts: Shift[], payments: Payment[]): Balance 
 export function getCurrentMileage(carId: string, shifts: Shift[]): number | undefined {
   const carShifts = shifts.filter((s) => s.carId === carId);
   if (carShifts.length === 0) return undefined;
-  // Берём максимальный odometerEnd — это актуальный пробег
   return Math.max(...carShifts.map((s) => s.odometerEnd));
 }
 
@@ -112,7 +135,6 @@ export function calculateCarStatus(car: Car, currentMileage?: number): CarStatus
   }
 
   // --- ТО ---
-  // Логика: текущий пробег (odometerEnd последней смены) сравниваем с nextToMileage
   if (car.lastInspectionMileage > 0 && car.inspectionInterval > 0 && currentMileage !== undefined) {
     const nextToMileage = car.lastInspectionMileage + car.inspectionInterval;
     const reminderThreshold = car.reminderKm > 0 ? car.reminderKm : 2000;

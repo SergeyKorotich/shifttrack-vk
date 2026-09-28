@@ -3,8 +3,26 @@ import { loadFromStorage, saveToStorage } from './storage';
 import { detectGroupRole } from './vkApi';
 import type { User } from '../types';
 
+const IS_DEV = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
 export async function getCurrentUser(): Promise<User | null> {
   try {
+    if (IS_DEV) {
+      const stored = await loadFromStorage<User | null>('shifttrack_user', null);
+      if (stored) return stored;
+
+      return {
+        vkId: 123456789,
+        firstName: 'Иван',
+        lastName: 'Водитель',
+        photo: 'https://sun9-xx.userapi.com/impg/xxxx/yyyy.jpg?size=100x100',
+        fio: 'Иван Водитель',
+        role: 'employee',
+        groupId: undefined,
+        groupName: undefined,
+      };
+    }
+
     const userInfo = await bridge.send('VKWebAppGetUserInfo') as {
       id: number;
       first_name: string;

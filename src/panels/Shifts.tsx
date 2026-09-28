@@ -47,6 +47,34 @@ function getDaySummary(dayShifts: Shift[]) {
   return { totalDistance, totalEarnings, totalDurationMinutes };
 }
 
+function getMonthStats(shifts: Shift[], year: number, month: number) {
+  const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const shiftsInMonth = shifts.filter((s) => s.date.startsWith(monthKey));
+  if (shiftsInMonth.length === 0) return null;
+
+  let totalDistance = 0;
+  let totalEarnings = 0;
+  let totalDurationMinutes = 0;
+
+  for (const s of shiftsInMonth) {
+    totalDistance += s.distance;
+    totalEarnings += s.earnings;
+    if (s.timeStart && s.timeEnd) {
+      const calc = calculateShift(s.odometerStart, s.odometerEnd, s.tariff, s.tariffType, s.timeStart, s.timeEnd);
+      totalDurationMinutes += calc.durationMinutes;
+    }
+  }
+
+  return {
+    count: shiftsInMonth.length,
+    totalDistance,
+    totalEarnings,
+    avgDistance: Math.round(totalDistance / shiftsInMonth.length),
+    avgEarnings: Math.round(totalEarnings / shiftsInMonth.length),
+    avgDurationHours: Math.round((totalDurationMinutes / 60 / shiftsInMonth.length) * 10) / 10,
+  };
+}
+
 const paymentTypeLabels: Record<PaymentType, string> = {
   salary: 'Зарплата',
   advance: 'Аванс',
@@ -102,30 +130,32 @@ export const Shifts = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      const s = await loadFromStorage<Shift[]>('shifttrack_shifts', []);
-      const c = await loadFromStorage<Car[]>('shifttrack_cars', []);
-      const p = await loadFromStorage<Payment[]>('shifttrack_payments', []);
-      setShifts(s);
-      setCars(c);
-      setPayments(p);
+      try {
+        const s = await loadFromStorage<Shift[]>('shifttrack_shifts', []);
+        const c = await loadFromStorage<Car[]>('shifttrack_cars', []);
+        const p = await loadFromStorage<Payment[]>('shifttrack_payments', []);
+        setShifts(s);
+        setCars(c);
+        setPayments(p);
 
-      if (s.length > 0) {
-        const sorted = [...s].sort((a, b) => b.date.localeCompare(a.date));
-        const lastShift = sorted[0];
-        setTariffType(lastShift.tariffType);
-        setTariff(lastShift.tariff.toString());
+        if (s.length > 0) {
+          const sorted = [...s].sort((a, b) => b.date.localeCompare(a.date));
+          const lastShift = sorted[0];
+          setTariffType(lastShift.tariffType);
+          setTariff(lastShift.tariff.toString());
+        }
+      } catch (e) {
+        console.error('Ошибка загрузки данных в Shifts.tsx', e);
       }
     };
     loadData();
   }, []);
 
-  // Синхронизация месяца выплат с месяцем календаря
   useEffect(() => {
     const m = String(month + 1).padStart(2, '0');
     setPaymentMonth(`${year}-${m}`);
   }, [year, month]);
 
-  // Предзаполнение формы смены при выборе даты
   useEffect(() => {
     if (!selectedDate) {
       setEditingShiftId(null);
@@ -175,12 +205,27 @@ export const Shifts = () => {
     timeEnd || undefined,
   );
 
+  const validateOdometer = (): boolean => {
+    const start = Number(odometerStart);
+    const end = Number(odometerEnd);
+    if (isNaN(start) || isNaN(end)) {
+      alert('Проверьте значения одометра: должны быть числами');
+      return false;
+    }
+    if (end < start) {
+      alert('Конечный пробег не может быть меньше начального');
+      return false;
+    }
+    return true;
+  };
+
   const handleSave = async () => {
     if (!editingShiftId) return;
     if (!carId) {
       alert('Выберите автомобиль');
       return;
     }
+    if (!validateOdometer()) return;
 
     const updated = shifts.map((s) => {
       if (s.id === editingShiftId) {
@@ -212,6 +257,7 @@ export const Shifts = () => {
       return;
     }
     if (!selectedDate) return;
+    if (!validateOdometer()) return;
 
     const newShift: Shift = {
       id: generateId(),
@@ -341,6 +387,7 @@ export const Shifts = () => {
   const grouped = groupShiftsByDate(shifts);
   const days = getDaysInMonth(year, month);
   const firstDayOffset = getFirstDayOffset(year, month);
+  const stats = getMonthStats(shifts, year, month);
 
   const goPrevMonth = () => {
     if (month === 0) {
@@ -367,18 +414,16 @@ export const Shifts = () => {
     <Fragment>
       <PanelHeader>Смены</PanelHeader>
 
-      {/* Общая навигация под заголовком */}
       <Group>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
-          <Button size="s" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/settings')}>Настройки</Button>
         </div>
       </Group>
 
       {selectedDate === null ? (
         <Fragment>
-          {/* Календарь смен */}
           <Group header={<Header size="s">Календарь смен</Header>}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Button size="s" mode="secondary" onClick={goPrevMonth}>←</Button>
@@ -387,6 +432,25 @@ export const Shifts = () => {
               </div>
               <Button size="s" mode="secondary" onClick={goNextMonth}>→</Button>
             </div>
+
+            {stats && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', margin: '12px 0', padding: '8px', backgroundColor: '#F7F8FA', borderRadius: '8px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '11px', color: '#8A8A99' }}>Смен</div>
+                  <div style={{ fontWeight: 700, fontSize: '16px' }}>{stats.count}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '11px', color: '#8A8A99' }}>Средний пробег</div>
+                  <div style={{ fontWeight: 700, fontSize: '16px' }}>{stats.avgDistance} км</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '11px', color: '#8A8A99' }}>Средний заработок</div>
+                  <div style={{ fontWeight: 700, fontSize: '16px', color: '#1B5E20' }}>
+                    {stats.avgEarnings.toLocaleString('ru-RU')} ₽
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div style={{ margin: '12px 0', borderBottom: '1px solid #E1E3E6' }} />
 
@@ -448,7 +512,6 @@ export const Shifts = () => {
             </div>
           </Group>
 
-          {/* Форма выплаты */}
           <Group header={<Header size="s">Добавить выплату</Header>}>
             <FormItem top="Дата выплаты">
               <Input
@@ -501,7 +564,6 @@ export const Shifts = () => {
             </FormItem>
           </Group>
 
-          {/* Список выплат и итог — внизу под кнопкой */}
           <Group header={<Header size="s">Выплаты за {formatPeriod(paymentMonth)}</Header>}>
             {paymentsForMonth.length > 0 && (
               <div>
@@ -558,7 +620,6 @@ export const Shifts = () => {
         </Fragment>
       ) : (
         <Fragment>
-          {/* Форма дня (только смены) */}
           <Group>
             <Button size="m" mode="secondary" onClick={() => setSelectedDate(null)}>← Назад к календарю</Button>
           </Group>

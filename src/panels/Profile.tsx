@@ -13,7 +13,6 @@ export const Profile = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Поля формы
   const [driverName, setDriverName] = useState('');
   const [brand, setBrand] = useState('');
   const [plate, setPlate] = useState('');
@@ -26,10 +25,14 @@ export const Profile = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      const c = await loadFromStorage<Car[]>('shifttrack_cars', []);
-      const s = await loadFromStorage<Shift[]>('shifttrack_shifts', []);
-      setCars(c);
-      setShifts(s);
+      try {
+        const c = await loadFromStorage<Car[]>('shifttrack_cars', []);
+        const s = await loadFromStorage<Shift[]>('shifttrack_shifts', []);
+        setCars(c);
+        setShifts(s);
+      } catch (e) {
+        console.error('Ошибка загрузки данных в Profile.tsx', e);
+      }
     };
     loadData();
   }, []);
@@ -135,19 +138,17 @@ export const Profile = () => {
     <Fragment>
       <PanelHeader>Машины</PanelHeader>
 
-      {/* Навигация вверху */}
       <Group>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
-          <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/settings')}>Настройки</Button>
         </div>
       </Group>
 
       {showForm ? (
-        // Форма добавления / редактирования
         <Group header={<Header size="s">{editingId ? 'Редактировать автомобиль' : 'Добавить автомобиль'}</Header>}>
-          {/* ФИО водителя — теперь самое первое поле */}
           <FormItem top="ФИО водителя">
             <Input
               type="text"
@@ -216,7 +217,6 @@ export const Profile = () => {
           </FormItem>
         </Group>
       ) : (
-        // Список автомобилей + кнопка добавления
         <Fragment>
           <Group header={<Header size="s">Список автомобилей</Header>}>
             {cars.length === 0 ? (
@@ -247,7 +247,11 @@ export const Profile = () => {
                       VIN: {car.vin}
                     </div>
                     <div style={{ marginTop: '8px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                      <div style={{ fontSize: '13px' }}>ОСАГО: {car.osagoExpiry || 'не указано'}</div>
+                      <div style={{ fontSize: '13px' }}>
+                        ОСАГО: <span style={{ color: statusColors[status.osago] }}>
+                          {car.osagoExpiry || 'не указано'}
+                        </span>
+                      </div>
                       <div style={{ fontSize: '13px' }}>
                         Последнее ТО: {car.lastInspectionDate || 'не указано'}, {car.lastInspectionMileage} км
                       </div>

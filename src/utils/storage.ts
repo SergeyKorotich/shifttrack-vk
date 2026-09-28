@@ -48,11 +48,56 @@ export async function loadFromStorage<T>(key: string, defaultValue: T): Promise<
   }
 }
 
-export async function saveToStorage(key: string, value: unknown): Promise<void> {
+/**
+ * Сохраняет значение. Если переданная функция — применяет её к текущему значению
+ * (паттерн апдейтера) перед сохранением. Это нужно для безопасного обновления массивов/объектов.
+ */
+export async function saveToStorage(
+  key: string,
+  valueOrUpdater: unknown | ((prev: unknown) => unknown),
+): Promise<void> {
+  const getCurrent = async () => {
+    // Для апдейтеров сначала читаем текущее значение
+    if (!isInVK) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : undefined;
+      } catch {
+        return undefined;
+      }
+    }
+
+    try {
+      const response = await withTimeout(
+        bridge.send('VKWebAppStorageGet', { keys: [key] }),
+        3000,
+      );
+      if (response?.keys?.length && response.keys[0]?.value) {
+        try {
+          return JSON.parse(response.keys[0].value);
+        } catch {
+          return undefined;
+        }
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  let finalValue: unknown;
+
+  if (typeof valueOrUpdater === 'function') {
+    const prev = await getCurrent();
+    finalValue = valueOrUpdater(prev);
+  } else {
+    finalValue = valueOrUpdater;
+  }
+
   // Локальная разработка: localStorage
   if (!isInVK) {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      localStorage.setItem(key, JSON.stringify(finalValue));
       return;
     } catch (error) {
       console.error(`Не удалось сохранить ключ ${key} в localStorage:`, error);
@@ -65,7 +110,7 @@ export async function saveToStorage(key: string, value: unknown): Promise<void> 
     await withTimeout(
       bridge.send('VKWebAppStorageSet', {
         key,
-        value: JSON.stringify(value),
+        value: JSON.stringify(finalValue),
       }),
       3000,
     );

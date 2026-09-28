@@ -2,67 +2,119 @@ import { useState, useEffect, Fragment } from 'react';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import {
   PanelHeader, Group, Header, Button, FormItem, Input, Card,
+  Select, Text,
 } from '@vkontakte/vkui';
-import bridge from '@vkontakte/vk-bridge';
-import type { User } from '../types';
+import type { User, AppSettings, TariffEntry, Theme, ReportFormat, ReportDestination } from '../types';
 import { loadFromStorage, saveToStorage } from '../utils/storage';
-// Убираем detectGroupRole из импорта — пока не делаем запросы к API
+import { generateId, formatDate } from '../utils/shiftUtils';
+import { getCurrentUser } from '../utils/user';
 
-async function getBasicUserInfo(): Promise<User | null> {
-  try {
-    const userInfo = await Promise.race([
-      bridge.send('VKWebAppGetUserInfo'),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000)),
-    ]) as { id: number; first_name: string; last_name: string; photo_100?: string };
+const SETTINGS_KEY = 'shifttrack_settings';
 
-    const stored = await loadFromStorage<User | null>('shifttrack_user', null);
+const DEFAULT_SETTINGS: AppSettings = {
+  theme: 'light',
+  tariffs: [],
+  report: {
+    format: 'csv',
+    destination: 'device',
+    fileName: '',
+    header: '',
+  },
+};
 
-    if (stored && stored.vkId === userInfo.id) {
-      return { ...stored, firstName: userInfo.first_name, lastName: userInfo.last_name, photo: userInfo.photo_100 };
-    }
-
-    return {
-      vkId: userInfo.id,
-      firstName: userInfo.first_name,
-      lastName: userInfo.last_name,
-      photo: userInfo.photo_100,
-      fio: `${userInfo.first_name} ${userInfo.last_name}`,
-      role: 'none', // Пока не запрашиваем роль через API
-      groupId: undefined,
-      groupName: undefined,
-    };
-  } catch {
-    return await loadFromStorage<User | null>('shifttrack_user', null);
-  }
+interface SettingsProps {
+  onThemeChange?: (scheme: 'light' | 'dark') => void;
 }
 
-async function saveCurrentUser(user: User): Promise<void> {
-  await saveToStorage('shifttrack_user', user);
-}
-
-export const Settings = () => {
+export const Settings = ({ onThemeChange }: SettingsProps) => {
   const navigator = useRouteNavigator();
   const [user, setUser] = useState<User | null>(null);
   const [fio, setFio] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+
+  const [newTariffDate, setNewTariffDate] = useState(formatDate(new Date()));
+  const [newKmRate, setNewKmRate] = useState('');
+  const [newHourRate, setNewHourRate] = useState('');
+
+  const [reportFileName, setReportFileName] = useState('');
+  const [reportHeader, setReportHeader] = useState('');
+
   useEffect(() => {
     const load = async () => {
-      const u = await getBasicUserInfo();
+      const u = await getCurrentUser();
       setUser(u);
       setFio(u?.fio || '');
+
+      const s = await loadFromStorage<AppSettings>(SETTINGS_KEY, DEFAULT_SETTINGS);
+      setSettings(s);
+      setReportFileName(s.report.fileName);
+      setReportHeader(s.report.header);
+
       setLoading(false);
-      if (u) await saveCurrentUser(u);
+      if (u) await saveToStorage('shifttrack_user', u);
     };
     load();
   }, []);
+
+  // ─── Тема ───
+  const handleThemeChange = async (theme: Theme) => {
+    const updated = { ...settings, theme };
+    setSettings(updated);
+    await saveToStorage(SETTINGS_KEY, updated);
+    if (onThemeChange) onThemeChange(theme);  // <-- мгновенно обновляет colorScheme в App
+  };
+
+  const handleAddTariff = async () => {
+    if (!newTariffDate || (!newKmRate && !newHourRate)) return;
+
+    const entry: TariffEntry = {
+      id: generateId(),
+      effectiveFrom: newTariffDate,
+      kmRate: Number(newKmRate) || 0,
+      hourRate: Number(newHourRate) || 0,
+    };
+
+    const updated = {
+      ...settings,
+      tariffs: [...settings.tariffs, entry].sort(
+        (a, b) => new Date(a.effectiveFrom).getTime() - new Date(b.effectiveFrom).getTime(),
+      ),
+    };
+    setSettings(updated);
+    await saveToStorage(SETTINGS_KEY, updated);
+
+    setNewKmRate('');
+    setNewHourRate('');
+  };
+
+  const handleDeleteTariff = async (id: string) => {
+    const updated = {
+      ...settings,
+      tariffs: settings.tariffs.filter((t) => t.id !== id),
+    };
+    setSettings(updated);
+    await saveToStorage(SETTINGS_KEY, updated);
+  };
+
+  const handleReportSetting = async (
+    field: 'format' | 'destination' | 'fileName' | 'header',
+    value: string,
+  ) => {
+    const updated = {
+      ...settings,
+      report: { ...settings.report, [field]: value },
+    };
+    setSettings(updated);
+    await saveToStorage(SETTINGS_KEY, updated);
+  };
 
   const handleSaveFio = async () => {
     if (!user) return;
     const updated = { ...user, fio };
     setUser(updated);
-    await saveCurrentUser(updated);
-    alert('ФИО сохранено');
+    await saveToStorage('shifttrack_user', updated);
   };
 
   if (loading || !user) {
@@ -82,8 +134,9 @@ export const Settings = () => {
     <Fragment>
       <PanelHeader>Настройки</PanelHeader>
 
+      {/* ─── Профиль ─── */}
       <Group header={<Header size="s">Профиль</Header>}>
-        <Card mode="outline" style={{ padding: '16px' }}>
+        <Card mode="outline" Component="div" style={{ padding: '16px', margin: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {user.photo && (
               <img
@@ -112,12 +165,141 @@ export const Settings = () => {
           />
         </FormItem>
         <FormItem>
-          <Button size="m" onClick={handleSaveFio}>Сохранить ФИО</Button>
+          <Button size="m" mode="primary" onClick={handleSaveFio}>Сохранить ФИО</Button>
         </FormItem>
       </Group>
 
-      {/* Блок про группу убираем, чтобы не делать лишних запросов */}
-      
+      {/* ─── Тема ─── */}
+      <Group header={<Header size="s">Оформление</Header>}>
+        <FormItem top="Тема">
+          <Select
+            options={[
+              { label: 'Светлая', value: 'light' },
+              { label: 'Тёмная', value: 'dark' },
+            ]}
+            value={settings.theme}
+            onChange={(e) => handleThemeChange(e.target.value as Theme)}
+          />
+        </FormItem>
+      </Group>
+
+      {/* ─── Тарифы ─── */}
+      <Group header={<Header size="s">Тарифы</Header>}>
+        {settings.tariffs.length > 0 && (
+          <div style={{ padding: '0 12px' }}>
+            {settings.tariffs.map((t) => (
+              <Card
+                key={t.id}
+                mode="outline"
+                Component="div"
+                style={{ padding: '12px', marginBottom: '8px' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <Text weight="2">
+                      с {t.effectiveFrom}
+                    </Text>
+                    <Text weight="3" style={{ color: '#8A8A99', marginTop: '4px' }}>
+                      {t.kmRate > 0 && `${t.kmRate} ₽/км`}
+                      {t.kmRate > 0 && t.hourRate > 0 && ' · '}
+                      {t.hourRate > 0 && `${t.hourRate} ₽/ч`}
+                    </Text>
+                  </div>
+                  <Button
+                    mode="tertiary"
+                    size="s"
+                    onClick={() => handleDeleteTariff(t.id)}
+                  >
+                    Удалить
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <FormItem top="Дата начала действия">
+          <Input
+            type="date"
+            value={newTariffDate}
+            onChange={(e) => setNewTariffDate(e.target.value)}
+          />
+        </FormItem>
+        <FormItem top="Ставка за км (₽)">
+          <Input
+            type="number"
+            value={newKmRate}
+            onChange={(e) => setNewKmRate(e.target.value)}
+            placeholder="например, 15"
+          />
+        </FormItem>
+        <FormItem top="Ставка за час (₽)">
+          <Input
+            type="number"
+            value={newHourRate}
+            onChange={(e) => setNewHourRate(e.target.value)}
+            placeholder="например, 500"
+          />
+        </FormItem>
+        <FormItem>
+          <Button size="m" mode="primary" onClick={handleAddTariff}>
+            Добавить тариф
+          </Button>
+        </FormItem>
+      </Group>
+
+      {/* ─── Настройки отчётов ─── */}
+      <Group header={<Header size="s">Отчёты</Header>}>
+        <FormItem top="Формат отчёта">
+          <Select
+            options={[
+              { label: 'Таблица (CSV)', value: 'csv' },
+              { label: 'PDF', value: 'pdf' },
+            ]}
+            value={settings.report.format}
+            onChange={(e) => handleReportSetting('format', e.target.value as ReportFormat)}
+          />
+        </FormItem>
+
+        <FormItem top="Куда отправить">
+          <Select
+            options={[
+              { label: 'Сохранить на устройстве', value: 'device' },
+              { label: 'Яндекс Диск', value: 'yandexDisk' },
+              { label: 'Google Drive', value: 'googleDrive' },
+              { label: 'Отправить на email', value: 'email' },
+            ]}
+            value={settings.report.destination}
+            onChange={(e) => handleReportSetting('destination', e.target.value as ReportDestination)}
+          />
+        </FormItem>
+
+        <FormItem top="Название файла (по умолчанию: месяц и год)">
+          <Input
+            type="text"
+            value={reportFileName}
+            onChange={(e) => {
+              setReportFileName(e.target.value);
+              handleReportSetting('fileName', e.target.value);
+            }}
+            placeholder="2026-09"
+          />
+        </FormItem>
+
+        <FormItem top="Заголовок отчёта (по умолчанию: ФИО, марка, номер, месяц)">
+          <Input
+            type="text"
+            value={reportHeader}
+            onChange={(e) => {
+              setReportHeader(e.target.value);
+              handleReportSetting('header', e.target.value);
+            }}
+            placeholder="Иванов И.И., Toyota Camry А123ВС, Сентябрь 2026"
+          />
+        </FormItem>
+      </Group>
+
+      {/* ─── Навигация ─── */}
       <Group>
         <div style={{ padding: '12px', display: 'flex', gap: '8px' }}>
           <Button size="m" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
