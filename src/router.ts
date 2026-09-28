@@ -1,29 +1,24 @@
 import { createHashRouter } from '@vkontakte/vk-mini-apps-router';
 
-import { Home } from './panels/Home';
-import { Shifts } from './panels/Shifts';
-import { Profile } from './panels/Profile';
-import { Settings } from './panels/Settings';
-
 export const router = createHashRouter([
   {
     path: '/',
-    panel: Home,
+    panel: 'home',
     view: 'default',
   },
   {
     path: '/shifts',
-    panel: Shifts,
+    panel: 'shifts',
     view: 'default',
   },
   {
     path: '/profile',
-    panel: Profile,
+    panel: 'profile',
     view: 'default',
   },
   {
     path: '/settings',
-    panel: Settings,
+    panel: 'settings',
     view: 'default',
   },
 ]);
