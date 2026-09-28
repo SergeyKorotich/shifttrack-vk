@@ -1,6 +1,6 @@
 import { createHashRouter } from '@vkontakte/vk-mini-apps-router';
 
-// Важно: используем именованные импорты, потому что в панелях export const X
+// Именованные импорты — потому что у тебя везде export const X
 import { Home } from './panels/Home';
 import { Shifts } from './panels/Shifts';
 import { Profile } from './panels/Profile';
