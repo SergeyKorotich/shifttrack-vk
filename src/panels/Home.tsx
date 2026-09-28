@@ -139,8 +139,7 @@ export const Home = () => {
       <PanelHeader>ShiftTrack</PanelHeader>
 
       <Group>
-        <Div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-          <Button size="s" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
+        <Div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/settings')}>Настройки</Button>

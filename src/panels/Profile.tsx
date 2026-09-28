@@ -124,9 +124,9 @@ export const Profile = () => {
   };
 
   const statusColors: Record<StatusType, string> = {
-    default: '#8A8A99',
-    warning: '#FFA000',
-    error: '#D32F2F',
+    default: 'var(--vkui--color_accent_positive)',
+    warning: 'var(--vkui--color_accent_attention)',
+    error: 'var(--vkui--color_accent_negative)',
   };
   const statusText: Record<StatusType, string> = {
     default: 'В норме',
@@ -139,10 +139,9 @@ export const Profile = () => {
       <PanelHeader>Машины</PanelHeader>
 
       <Group>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
-          <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
           <Button size="s" mode="secondary" onClick={() => navigator.push('/settings')}>Настройки</Button>
         </div>
       </Group>
@@ -169,13 +168,13 @@ export const Profile = () => {
             <Input type="text" value={vin} onChange={(e) => setVin(e.target.value)} />
           </FormItem>
 
-          <div style={{ borderTop: '1px solid #E1E3E6', margin: '16px 0' }} />
+          <div style={{ borderTop: '1px solid var(--vkui--color_separator)', margin: '16px 0' }} />
 
           <FormItem top="Дата окончания ОСАГО">
             <Input type="date" value={osagoExpiry} onChange={(e) => setOsagoExpiry(e.target.value)} />
           </FormItem>
 
-          <div style={{ borderTop: '1px solid #E1E3E6', margin: '16px 0' }} />
+          <div style={{ borderTop: '1px solid var(--vkui--color_separator)', margin: '16px 0' }} />
 
           <FormItem top="Дата последнего ТО">
             <Input type="date" value={lastInspectionDate} onChange={(e) => setLastInspectionDate(e.target.value)} />
@@ -220,7 +219,7 @@ export const Profile = () => {
         <Fragment>
           <Group header={<Header size="s">Список автомобилей</Header>}>
             {cars.length === 0 ? (
-              <div style={{ padding: '12px', color: '#8A8A99', fontSize: '14px' }}>
+              <div style={{ padding: '12px', color: 'var(--vkui--text_secondary)', fontSize: '14px' }}>
                 Автомобилей пока нет. Нажмите «Добавить авто» ниже.
               </div>
             ) : (
@@ -231,36 +230,36 @@ export const Profile = () => {
                 const remaining = currentMileage !== undefined ? nextTo - currentMileage : null;
 
                 return (
-                  <div key={car.id} style={{ padding: '12px', borderBottom: '1px solid #E1E3E6' }}>
-                    <div style={{ fontWeight: 600, fontSize: '15px' }}>
+                  <div key={car.id} style={{ padding: '12px', borderBottom: '1px solid var(--vkui--color_separator)' }}>
+                    <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--vkui--text_primary)' }}>
                       {car.brand} {car.plate}
                       <span style={{ marginLeft: '8px', fontSize: '13px', color: statusColors[status.overall] }}>
                         {statusText[status.overall]}
                       </span>
                     </div>
                     {car.driverName && car.driverName !== '—' && (
-                      <div style={{ marginTop: '4px', fontSize: '13px', color: '#6D7885' }}>
+                      <div style={{ marginTop: '4px', fontSize: '13px', color: 'var(--vkui--text_secondary)' }}>
                         Водитель: {car.driverName}
                       </div>
                     )}
-                    <div style={{ marginTop: '4px', fontSize: '13px', color: '#6D7885' }}>
+                    <div style={{ marginTop: '4px', fontSize: '13px', color: 'var(--vkui--text_secondary)' }}>
                       VIN: {car.vin}
                     </div>
                     <div style={{ marginTop: '8px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                      <div style={{ fontSize: '13px' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--vkui--text_primary)' }}>
                         ОСАГО: <span style={{ color: statusColors[status.osago] }}>
                           {car.osagoExpiry || 'не указано'}
                         </span>
                       </div>
-                      <div style={{ fontSize: '13px' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--vkui--text_primary)' }}>
                         Последнее ТО: {car.lastInspectionDate || 'не указано'}, {car.lastInspectionMileage} км
                       </div>
-                      <div style={{ fontSize: '13px' }}>Следующее ТО: {nextTo} км</div>
-                      <div style={{ fontSize: '13px' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--vkui--text_primary)' }}>Следующее ТО: {nextTo} км</div>
+                      <div style={{ fontSize: '13px', color: 'var(--vkui--text_primary)' }}>
                         Текущий пробег: {currentMileage !== undefined ? `${currentMileage} км` : 'нет смен'}
                       </div>
                       {remaining !== null && (
-                        <div style={{ fontSize: '13px', color: remaining <= 0 ? '#D32F2F' : remaining <= car.reminderKm ? '#FFA000' : '#8A8A99' }}>
+                        <div style={{ fontSize: '13px', color: remaining <= 0 ? 'var(--vkui--color_accent_negative)' : remaining <= car.reminderKm ? 'var(--vkui--color_accent_attention)' : 'var(--vkui--text_secondary)' }}>
                           До ТО: {remaining > 0 ? `${remaining} км` : 'просрочено'}
                         </div>
                       )}
@@ -271,7 +270,7 @@ export const Profile = () => {
                       <Button
                         size="s"
                         mode="secondary"
-                        style={{ color: '#D32F2F' }}
+                        style={{ color: 'var(--vkui--color_accent_negative)' }}
                         onClick={() => handleDelete(car.id)}
                       >
                         Удалить

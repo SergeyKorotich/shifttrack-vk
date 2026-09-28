@@ -108,7 +108,6 @@ export const Shifts = () => {
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth());
 
-  // Форма смены
   const [carId, setCarId] = useState('');
   const [route, setRoute] = useState('');
   const [odometerStart, setOdometerStart] = useState('');
@@ -121,7 +120,6 @@ export const Shifts = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
 
-  // Форма выплаты
   const [paymentType, setPaymentType] = useState<PaymentType>('advance');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMonth, setPaymentMonth] = useState('');
@@ -310,8 +308,6 @@ export const Shifts = () => {
     }
   };
 
-  // --- Выплаты ---
-
   const resetPaymentForm = () => {
     setPaymentType('advance');
     setPaymentAmount('');
@@ -382,8 +378,6 @@ export const Shifts = () => {
     }
   };
 
-  // ---
-
   const grouped = groupShiftsByDate(shifts);
   const days = getDaysInMonth(year, month);
   const firstDayOffset = getFirstDayOffset(year, month);
@@ -427,42 +421,49 @@ export const Shifts = () => {
           <Group header={<Header size="s">Календарь смен</Header>}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Button size="s" mode="secondary" onClick={goPrevMonth}>←</Button>
-              <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: '16px' }}>
+              <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: '16px', color: 'var(--vkui--color_text_primary)' }}>
                 {new Date(year, month).toLocaleString('ru-RU', { month: 'long', year: 'numeric' })}
               </div>
               <Button size="s" mode="secondary" onClick={goNextMonth}>→</Button>
             </div>
 
             {stats && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', margin: '12px 0', padding: '8px', backgroundColor: '#F7F8FA', borderRadius: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', margin: '12px 0', padding: '8px', backgroundColor: 'var(--vkui--color_background_secondary)', borderRadius: '8px' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', color: '#8A8A99' }}>Смен</div>
-                  <div style={{ fontWeight: 700, fontSize: '16px' }}>{stats.count}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--vkui--color_text_secondary)' }}>Смен</div>
+                  <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--vkui--color_text_primary)' }}>{stats.count}</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', color: '#8A8A99' }}>Средний пробег</div>
-                  <div style={{ fontWeight: 700, fontSize: '16px' }}>{stats.avgDistance} км</div>
+                  <div style={{ fontSize: '11px', color: 'var(--vkui--color_text_secondary)' }}>Средний пробег</div>
+                  <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--vkui--color_text_primary)' }}>{stats.avgDistance} км</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', color: '#8A8A99' }}>Средний заработок</div>
-                  <div style={{ fontWeight: 700, fontSize: '16px', color: '#1B5E20' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--vkui--color_text_secondary)' }}>Средний заработок</div>
+                  <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--vkui--color_text_positive)' }}>
                     {stats.avgEarnings.toLocaleString('ru-RU')} ₽
                   </div>
                 </div>
               </div>
             )}
 
-            <div style={{ margin: '12px 0', borderBottom: '1px solid #E1E3E6' }} />
+            <div style={{ margin: '12px 0', borderBottom: '1px solid var(--vkui--color_separator_secondary)' }} />
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', padding: '4px 0' }}>
               {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
-                <div key={d} style={{ textAlign: 'center', color: '#8A8A99', fontSize: '13px' }}>{d}</div>
+                <div key={d} style={{ textAlign: 'center', color: 'var(--vkui--color_text_secondary)', fontSize: '13px' }}>{d}</div>
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', marginTop: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginTop: '8px' }}>
               {Array.from({ length: firstDayOffset }).map((_, i) => (
-                <div key={`empty-${i}`} style={{ height: '84px' }} />
+                <div
+                  key={`empty-${i}`}
+                  style={{
+                    height: '84px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--vkui--color_background_secondary)',
+                  }}
+                />
               ))}
 
               {days.map(({ date, day }) => {
@@ -480,31 +481,35 @@ export const Shifts = () => {
                       height: '84px',
                       padding: '6px 4px',
                       borderRadius: '8px',
-                      backgroundColor: hasShifts ? '#E8F0FE' : '#F7F8FA',
+                      backgroundColor: hasShifts
+                        ? 'var(--vkui--color_background_positive_tint)'
+                        : 'var(--vkui--color_background_secondary)',
                       cursor: 'pointer',
                       textAlign: 'center',
-                      border: isToday ? '1px solid #1A73E8' : '1px solid transparent',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'flex-start',
-                      gap: '1px',
+                      gap: '2px',
                       boxSizing: 'border-box',
+                      border: isToday
+                        ? '2px solid var(--vkui--color_stroke_accent)'
+                        : 'none',
                     }}
                   >
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: isToday ? '#1A73E8' : '#262629' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--vkui--color_text_primary)' }}>
                       {day}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#5F6368' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--vkui--color_text_accent)' }}>
                       {hasShifts ? `${summary.totalDistance} км` : ''}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#5F6368' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--vkui--color_text_accent)' }}>
                       {hasShifts && summary.totalDurationMinutes > 0
                         ? formatDuration(summary.totalDurationMinutes)
                         : ''}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#1B5E20', fontWeight: 600 }}>
-                      {hasShifts ? `${summary.totalEarnings.toLocaleString()} ₽` : ''}
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--vkui--color_text_accent)' }}>
+                      {hasShifts ? `${summary.totalEarnings.toLocaleString('ru-RU')} ₽` : ''}
                     </div>
                   </div>
                 );
@@ -575,14 +580,14 @@ export const Shifts = () => {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '8px 0',
-                      borderBottom: '1px solid #E1E3E6',
+                      borderBottom: '1px solid var(--vkui--color_separator_secondary)',
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--vkui--color_text_primary)' }}>
                         {paymentTypeLabels[p.type]}: {p.amount.toLocaleString('ru-RU')} ₽
                       </div>
-                      <div style={{ fontSize: '12px', color: '#8A8A99' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--vkui--color_text_secondary)' }}>
                         За: {formatPeriod(p.period)} · выплата: {p.date}
                       </div>
                     </div>
@@ -597,7 +602,7 @@ export const Shifts = () => {
                       <Button
                         size="s"
                         mode="secondary"
-                        style={{ color: '#D32F2F' }}
+                        style={{ color: 'var(--vkui--color_text_negative)' }}
                         onClick={() => handleDeletePayment(p.id)}
                       >
                         Удалить
@@ -608,11 +613,11 @@ export const Shifts = () => {
               </div>
             )}
 
-            <div style={{ marginTop: '12px', padding: '12px', textAlign: 'center', borderTop: '2px solid #7B61FF' }}>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: '#7B61FF' }}>
+            <div style={{ marginTop: '12px', padding: '12px', textAlign: 'center', borderTop: '2px solid var(--vkui--color_stroke_accent)' }}>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--vkui--color_text_accent)' }}>
                 {totalPaymentsForMonth.toLocaleString('ru-RU')} ₽
               </div>
-              <div style={{ color: '#8A8A99', fontSize: '13px' }}>
+              <div style={{ color: 'var(--vkui--color_text_secondary)', fontSize: '13px' }}>
                 Всего выплат за {formatPeriod(paymentMonth)}
               </div>
             </div>
@@ -686,7 +691,7 @@ export const Shifts = () => {
             )}
 
             <FormItem>
-              <div style={{ display: 'flex', gap: '8px', fontSize: '14px' }}>
+              <div style={{ display: 'flex', gap: '8px', fontSize: '14px', color: 'var(--vkui--color_text_primary)' }}>
                 <span>Пробег: <b>{preview.distance} км</b></span>
                 <span>Заработок: <b>{preview.earnings.toLocaleString('ru-RU')} ₽</b></span>
               </div>
@@ -699,7 +704,7 @@ export const Shifts = () => {
                     <Button
                       size="m"
                       mode="secondary"
-                      style={{ color: '#D32F2F' }}
+                      style={{ color: 'var(--vkui--color_text_negative)' }}
                       onClick={handleDelete}
                     >
                       Удалить
@@ -709,9 +714,11 @@ export const Shifts = () => {
                     </Button>
                   </Fragment>
                 )}
-                <Button size="m" onClick={handleAdd}>
-                  Добавить
-                </Button>
+                {!editingShiftId && (
+                  <Button size="m" onClick={handleAdd}>
+                    Добавить
+                  </Button>
+                )}
                 <Button size="m" mode="secondary" onClick={() => setSelectedDate(null)}>
                   Отмена
                 </Button>

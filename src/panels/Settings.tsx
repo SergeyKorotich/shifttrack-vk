@@ -58,12 +58,11 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
     load();
   }, []);
 
-  // ─── Тема ───
   const handleThemeChange = async (theme: Theme) => {
     const updated = { ...settings, theme };
     setSettings(updated);
     await saveToStorage(SETTINGS_KEY, updated);
-    if (onThemeChange) onThemeChange(theme);  // <-- мгновенно обновляет colorScheme в App
+    if (onThemeChange) onThemeChange(theme);
   };
 
   const handleAddTariff = async () => {
@@ -122,7 +121,7 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
       <Fragment>
         <PanelHeader>Настройки</PanelHeader>
         <Group>
-          <div style={{ padding: '24px', textAlign: 'center', color: '#8A8A99' }}>
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--vkui--color_text_secondary)' }}>
             Загрузка профиля...
           </div>
         </Group>
@@ -134,7 +133,14 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
     <Fragment>
       <PanelHeader>Настройки</PanelHeader>
 
-      {/* ─── Профиль ─── */}
+      <Group>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
+          <Button size="s" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
+        </div>
+      </Group>
+
       <Group header={<Header size="s">Профиль</Header>}>
         <Card mode="outline" Component="div" style={{ padding: '16px', margin: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -146,10 +152,10 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
               />
             )}
             <div>
-              <div style={{ fontWeight: 600 }}>
+              <div style={{ fontWeight: 600, color: 'var(--vkui--color_text_primary)' }}>
                 {user.firstName} {user.lastName}
               </div>
-              <div style={{ fontSize: '13px', color: '#8A8A99' }}>
+              <div style={{ fontSize: '13px', color: 'var(--vkui--color_text_secondary)' }}>
                 VK ID: {user.vkId}
               </div>
             </div>
@@ -169,7 +175,6 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
         </FormItem>
       </Group>
 
-      {/* ─── Тема ─── */}
       <Group header={<Header size="s">Оформление</Header>}>
         <FormItem top="Тема">
           <Select
@@ -183,7 +188,6 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
         </FormItem>
       </Group>
 
-      {/* ─── Тарифы ─── */}
       <Group header={<Header size="s">Тарифы</Header>}>
         {settings.tariffs.length > 0 && (
           <div style={{ padding: '0 12px' }}>
@@ -196,10 +200,10 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <Text weight="2">
+                    <Text weight="2" style={{ color: 'var(--vkui--color_text_primary)' }}>
                       с {t.effectiveFrom}
                     </Text>
-                    <Text weight="3" style={{ color: '#8A8A99', marginTop: '4px' }}>
+                    <Text weight="3" style={{ color: 'var(--vkui--color_text_secondary)', marginTop: '4px' }}>
                       {t.kmRate > 0 && `${t.kmRate} ₽/км`}
                       {t.kmRate > 0 && t.hourRate > 0 && ' · '}
                       {t.hourRate > 0 && `${t.hourRate} ₽/ч`}
@@ -248,7 +252,6 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
         </FormItem>
       </Group>
 
-      {/* ─── Настройки отчётов ─── */}
       <Group header={<Header size="s">Отчёты</Header>}>
         <FormItem top="Формат отчёта">
           <Select
@@ -297,15 +300,6 @@ export const Settings = ({ onThemeChange }: SettingsProps) => {
             placeholder="Иванов И.И., Toyota Camry А123ВС, Сентябрь 2026"
           />
         </FormItem>
-      </Group>
-
-      {/* ─── Навигация ─── */}
-      <Group>
-        <div style={{ padding: '12px', display: 'flex', gap: '8px' }}>
-          <Button size="m" mode="secondary" onClick={() => navigator.push('/')}>Домой</Button>
-          <Button size="m" mode="secondary" onClick={() => navigator.push('/shifts')}>Смены</Button>
-          <Button size="m" mode="secondary" onClick={() => navigator.push('/profile')}>Машины</Button>
-        </div>
       </Group>
     </Fragment>
   );
